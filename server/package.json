@@ -1,0 +1,12 @@
+{
+  "name": "calendar-relay",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node calendar-relay.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
