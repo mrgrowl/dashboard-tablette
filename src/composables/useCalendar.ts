@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import ICAL from 'ical.js'
 
 // Relais maison : Google ne renvoie pas de CORS sur les flux ICS, donc on
@@ -10,7 +10,10 @@ import ICAL from 'ical.js'
 // surcharger avec une URL absolue si le relais est hébergé ailleurs.
 const RELAY_BASE = import.meta.env.VITE_CALENDAR_RELAY_URL || ''
 
-const STORAGE_KEY = 'calendar_ics_url'
+// Lien secret iCal du calendrier, fourni au build via variable d'env (voir
+// .env.example). Fixe pour la durée de vie du build, pas configurable en UI.
+const CALENDAR_URL = import.meta.env.VITE_CALENDAR_ICS_URL || ''
+
 const WINDOW_DAYS = 90
 const REFRESH_MS = 5 * 60_000 // les événements changent rarement, pas besoin de poller vite
 
@@ -40,21 +43,8 @@ function resolveColor(vevent: ICAL.Component, summary: string): string {
   return explicit || hashColor(summary)
 }
 
-const calendarUrl = ref(localStorage.getItem(STORAGE_KEY) ?? '')
 const events = ref<CalendarEvent[]>([])
-const hasCalendarUrl = computed(() => Boolean(calendarUrl.value))
-
-function setCalendarUrl(url: string) {
-  calendarUrl.value = url
-  localStorage.setItem(STORAGE_KEY, url)
-  fetchCalendarEvents()
-}
-
-function clearCalendarUrl() {
-  calendarUrl.value = ''
-  events.value = []
-  localStorage.removeItem(STORAGE_KEY)
-}
+const error = ref<string | null>(null)
 
 function expandEvents(vevents: ICAL.Component[], rangeStart: Date, rangeEnd: Date): CalendarEvent[] {
   const result: CalendarEvent[] = []
@@ -103,9 +93,12 @@ function expandEvents(vevents: ICAL.Component[], rangeStart: Date, rangeEnd: Dat
 }
 
 async function fetchCalendarEvents() {
-  if (!calendarUrl.value) return
+  if (!CALENDAR_URL) {
+    error.value = "URL de calendrier manquante (variable d'env VITE_CALENDAR_ICS_URL)."
+    return
+  }
   try {
-    const res = await fetch(`${RELAY_BASE}/api/calendar-proxy?url=${encodeURIComponent(calendarUrl.value)}`)
+    const res = await fetch(`${RELAY_BASE}/api/calendar-proxy?url=${encodeURIComponent(CALENDAR_URL)}`)
     if (!res.ok) throw new Error(`Relais calendrier ${res.status}`)
     const icsText = await res.text()
 
@@ -119,8 +112,10 @@ async function fetchCalendarEvents() {
     rangeEnd.setDate(rangeEnd.getDate() + WINDOW_DAYS)
 
     events.value = expandEvents(vevents, rangeStart, rangeEnd)
+    error.value = null
   } catch (err) {
     console.error('Erreur récupération du calendrier', err)
+    error.value = 'Impossible de récupérer le calendrier.'
   }
 }
 
@@ -138,11 +133,8 @@ function stopCalendarPolling() {
 
 export function useCalendar() {
   return {
-    calendarUrl,
-    hasCalendarUrl,
     events,
-    setCalendarUrl,
-    clearCalendarUrl,
+    error,
     startCalendarPolling,
     stopCalendarPolling,
   }

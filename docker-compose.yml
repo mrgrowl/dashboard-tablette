@@ -3,6 +3,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Renseignées comme variables d'environnement de la resource Coolify :
+        # elle les substitue ici et les passe au build Docker (voir Dockerfile).
+        VITE_TCL_LOGIN: ${VITE_TCL_LOGIN}
+        VITE_TCL_PASSWORD: ${VITE_TCL_PASSWORD}
+        VITE_CALENDAR_ICS_URL: ${VITE_CALENDAR_ICS_URL}
+        VITE_CALENDAR_RELAY_URL: ${VITE_CALENDAR_RELAY_URL:-}
     restart: unless-stopped
     depends_on:
       - calendar-relay

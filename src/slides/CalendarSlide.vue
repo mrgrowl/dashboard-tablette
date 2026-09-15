@@ -1,16 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { CalendarEvent } from '../composables/useCalendar'
-import { useFullscreen } from '../composables/useFullscreen'
 
 const props = defineProps<{
   events: CalendarEvent[]
-  hasLink: boolean
+  error?: string | null
 }>()
-
-const emit = defineEmits<{ addLink: [] }>()
-
-const { isFullscreen } = useFullscreen()
 
 const now = new Date()
 const monthLabel = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
@@ -73,9 +68,7 @@ const cells = computed<DayCell[]>(() => {
   <section class="slide calendar">
     <header class="head">
       <h2>{{ monthLabel }}</h2>
-      <button v-if="!isFullscreen" class="add-link" @click="emit('addLink')">
-        {{ hasLink ? 'Changer de lien' : 'Ajouter un lien' }}
-      </button>
+      <p v-if="error" class="error">{{ error }}</p>
     </header>
 
     <div class="grid">
@@ -127,14 +120,12 @@ const cells = computed<DayCell[]>(() => {
   text-transform: capitalize;
 }
 
-.add-link {
-  padding: 0.5rem 1rem;
-  border-radius: 0.6rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: transparent;
-  color: var(--fg-muted, rgba(244, 246, 248, 0.75));
-  font-size: 0.9rem;
-  cursor: pointer;
+.error {
+  margin: 0;
+  color: #ff6b6b;
+  font-size: clamp(0.8rem, 1.6vw, 1rem);
+  font-weight: 600;
+  text-align: right;
 }
 
 .grid {

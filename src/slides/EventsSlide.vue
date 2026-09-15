@@ -1,16 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { CalendarEvent } from '../composables/useCalendar'
-import { useFullscreen } from '../composables/useFullscreen'
 
 const props = defineProps<{
   events: CalendarEvent[]
-  hasLink: boolean
+  error?: string | null
 }>()
-
-const emit = defineEmits<{ addLink: [] }>()
-
-const { isFullscreen } = useFullscreen()
 
 const upcoming = computed(() => {
   const now = new Date()
@@ -31,18 +26,16 @@ function formatWhen(e: CalendarEvent): string {
   <section class="slide events">
     <header class="head">
       <h2>Évènements à venir</h2>
-      <button v-if="!isFullscreen" class="add-link" @click="emit('addLink')">
-        {{ hasLink ? 'Changer de lien' : 'Ajouter un lien' }}
-      </button>
     </header>
 
-    <ul v-if="upcoming.length > 0" class="list">
+    <p v-if="error" class="error">{{ error }}</p>
+    <ul v-else-if="upcoming.length > 0" class="list">
       <li v-for="(e, i) in upcoming" :key="i" class="item">
         <span class="when">{{ formatWhen(e) }}</span>
         <span class="summary">{{ e.summary }}</span>
       </li>
     </ul>
-    <p v-else-if="hasLink" class="empty">Aucun évènement dans les prochains jours.</p>
+    <p v-else class="empty">Aucun évènement dans les prochains jours.</p>
   </section>
 </template>
 
@@ -70,14 +63,16 @@ function formatWhen(e: CalendarEvent): string {
   font-weight: 800;
 }
 
-.add-link {
-  padding: 0.5rem 1rem;
-  border-radius: 0.6rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: transparent;
-  color: var(--fg-muted, rgba(244, 246, 248, 0.75));
-  font-size: 0.9rem;
-  cursor: pointer;
+.error {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: #ff6b6b;
+  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  font-weight: 700;
+  text-align: center;
 }
 
 .list {

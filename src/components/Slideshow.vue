@@ -4,46 +4,21 @@ import ClockSlide from '../slides/ClockSlide.vue'
 import TransitSlide from '../slides/TransitSlide.vue'
 import CalendarSlide from '../slides/CalendarSlide.vue'
 import EventsSlide from '../slides/EventsSlide.vue'
-import CredentialsModal from './CredentialsModal.vue'
-import CalendarLinkModal from './CalendarLinkModal.vue'
 import { useFullscreen } from '../composables/useFullscreen'
 import { useCalendar } from '../composables/useCalendar'
 
 const { isFullscreen } = useFullscreen()
-const {
-  calendarUrl,
-  events: calendarEvents,
-  hasCalendarUrl,
-  setCalendarUrl,
-  startCalendarPolling,
-  stopCalendarPolling,
-} = useCalendar()
-const showCalendarLinkModal = ref(false)
+const { events: calendarEvents, error: calendarError, startCalendarPolling, stopCalendarPolling } = useCalendar()
 
 const SLIDE_DURATION_MS = 30_000
 const TCL_REFRESH_MS = 25_000
 
-const STORAGE_LOGIN_KEY = 'tcl_login'
-const STORAGE_PASSWORD_KEY = 'tcl_password'
+// Identifiants du compte "plateforme Data" Grand Lyon, fournis au build via
+// variable d'env (voir .env.example). Fixes pour la durée de vie du build.
+const TCL_LOGIN = import.meta.env.VITE_TCL_LOGIN || ''
+const TCL_PASSWORD = import.meta.env.VITE_TCL_PASSWORD || ''
 
-const tclLogin = ref(localStorage.getItem(STORAGE_LOGIN_KEY) ?? '')
-const tclPassword = ref(localStorage.getItem(STORAGE_PASSWORD_KEY) ?? '')
-const hasCredentials = computed(() => Boolean(tclLogin.value && tclPassword.value))
-
-function handleCredentialsSubmit(login: string, password: string) {
-  tclLogin.value = login
-  tclPassword.value = password
-  localStorage.setItem(STORAGE_LOGIN_KEY, login)
-  localStorage.setItem(STORAGE_PASSWORD_KEY, password)
-  fetchTclDepartures()
-}
-
-function clearCredentials() {
-  tclLogin.value = ''
-  tclPassword.value = ''
-  localStorage.removeItem(STORAGE_LOGIN_KEY)
-  localStorage.removeItem(STORAGE_PASSWORD_KEY)
-}
+const tclError = ref<string | null>(null)
 
 const TCL_PASSAGES_URL =
   'https://data.grandlyon.com/fr/datapusher/ws/rdata/tcl_sytral.tclpassagearret/all.json?maxfeatures=-1&start=1'
@@ -92,15 +67,17 @@ function parseDelai(delaipassage: string): number {
 }
 
 async function fetchTclDepartures() {
-  if (!hasCredentials.value) return
+  if (!TCL_LOGIN || !TCL_PASSWORD) {
+    tclError.value = "Identifiants TCL manquants (variables d'env VITE_TCL_LOGIN / VITE_TCL_PASSWORD)."
+    return
+  }
   try {
-    const auth = btoa(`${tclLogin.value}:${tclPassword.value}`)
+    const auth = btoa(`${TCL_LOGIN}:${TCL_PASSWORD}`)
     const res = await fetch(TCL_PASSAGES_URL, {
       headers: { Authorization: `Basic ${auth}` },
     })
     if (res.status === 401) {
-      console.error('Identifiants Grand Lyon refusés, on redemande.')
-      clearCredentials()
+      tclError.value = 'Identifiants TCL refusés par Grand Lyon.'
       return
     }
     if (!res.ok) throw new Error(`Grand Lyon API ${res.status}`)
@@ -133,8 +110,10 @@ async function fetchTclDepartures() {
     }
 
     departures.value = result
+    tclError.value = null
   } catch (err) {
     console.error('Erreur récupération des départs TCL', err)
+    tclError.value = 'Impossible de récupérer les horaires TCL.'
   }
 }
 
@@ -159,6 +138,7 @@ const slides = computed<Slide[]>(() => [
         station: stop.station,
         direction: stop.terminus,
         departures: departures.value[key],
+        errorMessage: tclError.value,
       },
     }
   }),
@@ -167,8 +147,7 @@ const slides = computed<Slide[]>(() => [
     component: markRaw(CalendarSlide),
     props: {
       events: calendarEvents.value,
-      hasLink: hasCalendarUrl.value,
-      onAddLink: () => (showCalendarLinkModal.value = true),
+      error: calendarError.value,
     },
   },
   {
@@ -176,8 +155,7 @@ const slides = computed<Slide[]>(() => [
     component: markRaw(EventsSlide),
     props: {
       events: calendarEvents.value,
-      hasLink: hasCalendarUrl.value,
-      onAddLink: () => (showCalendarLinkModal.value = true),
+      error: calendarError.value,
     },
   },
 ])
@@ -239,9 +217,6 @@ onUnmounted(() => {
         @click="goTo(i)"
       />
     </div>
-
-    <CredentialsModal v-if="!hasCredentials" @submit="handleCredentialsSubmit" />
-    <CalendarLinkModal v-model="showCalendarLinkModal" :current-url="calendarUrl" @save="setCalendarUrl" />
   </div>
 </template>
 

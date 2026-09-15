@@ -8,6 +8,7 @@ withDefaults(
     station: string
     direction: string
     departures: { destination: string; minutes: number; isLast?: boolean }[]
+    errorMessage?: string | null
   }>(),
   {
     lineTextColor: '#0b0f14',
@@ -44,7 +45,8 @@ withDefaults(
       </div>
     </header>
 
-    <ul v-if="departures.length > 0" class="departures">
+    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+    <ul v-else-if="departures.length > 0" class="departures">
       <li v-for="(d, i) in departures" :key="d.destination + i" class="departure" :class="{ last: d.isLast }">
         <span class="dest">
           {{ d.destination }}
@@ -198,6 +200,18 @@ h2.direction {
   margin: 0;
   color: var(--fg-muted);
   font-size: clamp(1.2rem, 2.8vw, 1.8rem);
+  font-weight: 700;
+  text-align: center;
+}
+
+.error {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: #ff6b6b;
+  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
   font-weight: 700;
   text-align: center;
 }
