@@ -1,4 +1,16 @@
 <script setup lang="ts">
+interface Departure {
+  destination: string
+  minutes: number
+  isLast?: boolean
+}
+
+interface Column {
+  direction: string
+  departures: Departure[]
+  errorMessage?: string | null
+}
+
 withDefaults(
   defineProps<{
     mode: 'metro' | 'tramway'
@@ -6,9 +18,7 @@ withDefaults(
     lineColor: string
     lineTextColor?: string
     station: string
-    direction: string
-    departures: { destination: string; minutes: number; isLast?: boolean }[]
-    errorMessage?: string | null
+    columns: Column[]
   }>(),
   {
     lineTextColor: '#0b0f14',
@@ -41,24 +51,37 @@ withDefaults(
           {{ mode === 'metro' ? 'Métro' : 'Tramway' }}
         </p>
         <p class="station">Arrêt {{ station }}</p>
-        <h2 class="direction">→ {{ direction }}</h2>
       </div>
     </header>
 
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    <ul v-else-if="departures.length > 0" class="departures">
-      <li v-for="(d, i) in departures" :key="d.destination + i" class="departure" :class="{ last: d.isLast }">
-        <span class="dest">
-          {{ d.destination }}
-          <span v-if="d.isLast" class="last-badge">Dernier de la soirée</span>
-        </span>
-        <span class="minutes" :class="{ soon: d.minutes <= 2 }">
-          <template v-if="d.minutes === 0">à quai</template>
-          <template v-else>{{ d.minutes }} min</template>
-        </span>
-      </li>
-    </ul>
-    <p v-else class="no-more">Il n'y a plus d'horaire pour ce soir !</p>
+    <div class="columns">
+      <template v-for="(col, i) in columns" :key="i">
+        <div class="column">
+          <h2 class="direction">→ {{ col.direction }}</h2>
+
+          <p v-if="col.errorMessage" class="error">{{ col.errorMessage }}</p>
+          <ul v-else-if="col.departures.length > 0" class="departures">
+            <li
+              v-for="(d, di) in col.departures"
+              :key="d.destination + di"
+              class="departure"
+              :class="{ last: d.isLast }"
+            >
+              <span class="dest">
+                {{ d.destination }}
+                <span v-if="d.isLast" class="last-badge">Dernier</span>
+              </span>
+              <span class="minutes" :class="{ soon: d.minutes <= 2 }">
+                <template v-if="d.minutes === 0">à quai</template>
+                <template v-else>{{ d.minutes }} min</template>
+              </span>
+            </li>
+          </ul>
+          <p v-else class="no-more">Plus d'horaire ce soir !</p>
+        </div>
+        <div v-if="i < columns.length - 1" class="divider" />
+      </template>
+    </div>
   </section>
 </template>
 
@@ -72,7 +95,7 @@ withDefaults(
   padding: clamp(1.5rem, 5vw, 4rem);
   display: flex;
   flex-direction: column;
-  gap: clamp(1.5rem, 4vw, 3rem);
+  gap: clamp(1.25rem, 3vw, 2.5rem);
 }
 
 .glow {
@@ -96,14 +119,14 @@ withDefaults(
 
 .badge {
   flex: none;
-  width: clamp(3.5rem, 8vw, 6rem);
-  height: clamp(3.5rem, 8vw, 6rem);
+  width: clamp(3rem, 6vw, 4.5rem);
+  height: clamp(3rem, 6vw, 4.5rem);
   border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  font-size: clamp(1.2rem, 2.4vw, 1.7rem);
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
 }
 
@@ -115,7 +138,7 @@ withDefaults(
   color: var(--fg-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: clamp(0.85rem, 1.6vw, 1.1rem);
+  font-size: clamp(0.8rem, 1.4vw, 1rem);
 }
 
 .mode-icon {
@@ -126,13 +149,38 @@ withDefaults(
 .station {
   margin: 0;
   color: var(--fg-muted);
-  font-size: clamp(1rem, 2.2vw, 1.4rem);
+  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  font-weight: 700;
+}
+
+.columns {
+  position: relative;
+  flex: 1;
+  display: flex;
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  min-height: 0;
+}
+
+.column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+.divider {
+  flex: none;
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 h2.direction {
-  margin: 0.2rem 0 0;
-  font-size: clamp(2rem, 5.5vw, 3.6rem);
+  margin: 0;
+  font-size: clamp(1.3rem, 3vw, 2rem);
   font-weight: 800;
+  line-height: 1.15;
 }
 
 .departures {
@@ -142,29 +190,33 @@ h2.direction {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.75rem, 2vw, 1.25rem);
+  gap: clamp(0.6rem, 1.6vw, 1rem);
   flex: 1;
   justify-content: center;
+  min-width: 0;
 }
 
 .departure {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  padding: clamp(0.9rem, 2.2vw, 1.4rem) clamp(1.2rem, 3vw, 2rem);
+  gap: 0.3rem 0.6rem;
+  padding: clamp(0.7rem, 1.8vw, 1.1rem) clamp(0.9rem, 2.2vw, 1.4rem);
   background: var(--bg-elevated);
-  border-radius: 1rem;
+  border-radius: 0.9rem;
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .dest {
-  font-size: clamp(1.1rem, 2.6vw, 1.6rem);
+  font-size: clamp(0.9rem, 1.9vw, 1.25rem);
   font-weight: 600;
+  min-width: 0;
 }
 
 .minutes {
   font-variant-numeric: tabular-nums;
-  font-size: clamp(1.3rem, 3vw, 1.9rem);
+  font-size: clamp(1.05rem, 2.2vw, 1.5rem);
   font-weight: 700;
   color: var(--accent);
 }
@@ -180,8 +232,8 @@ h2.direction {
 
 .last-badge {
   display: inline-block;
-  margin-left: 0.6em;
-  padding: 0.15em 0.6em;
+  margin-left: 0.5em;
+  padding: 0.15em 0.55em;
   border-radius: 999px;
   background: #ffab40;
   color: #0b0f14;
@@ -199,7 +251,7 @@ h2.direction {
   justify-content: center;
   margin: 0;
   color: var(--fg-muted);
-  font-size: clamp(1.2rem, 2.8vw, 1.8rem);
+  font-size: clamp(1rem, 2.2vw, 1.4rem);
   font-weight: 700;
   text-align: center;
 }
@@ -211,7 +263,7 @@ h2.direction {
   justify-content: center;
   margin: 0;
   color: #ff6b6b;
-  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  font-size: clamp(0.9rem, 1.9vw, 1.25rem);
   font-weight: 700;
   text-align: center;
 }

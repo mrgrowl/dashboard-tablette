@@ -31,6 +31,7 @@ interface StopConfig {
   lineLabel: string
   lineColor: string
   station: string
+  line: 'tram' | 'metroB' | 'metroD'
 }
 
 // Chaque ligne a des services partiels qui passent par l'arrêt sans aller
@@ -38,13 +39,24 @@ interface StopConfig {
 // la ligne B s'arrête parfois à Stade de Gerland, Place Jean Jaurès...) : on ne
 // garde que les passages signés pour le terminus complet de chaque sens.
 const STOPS = {
-  liberteNord: { id: 32112, terminus: 'IUT Feyssine', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté' },
-  liberteSud: { id: 32113, terminus: 'Debourg', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté' },
-  guichardNord: { id: 46027, terminus: 'Charpennes Charles Hernu', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard' },
-  guichardSud: { id: 46026, terminus: 'St-Genis-Laval Hôp. Sud', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard' },
+  liberteNord: { id: 32112, terminus: 'IUT Feyssine', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram' },
+  liberteSud: { id: 32113, terminus: 'Debourg', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram' },
+  guichardNord: { id: 46027, terminus: 'Charpennes Charles Hernu', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB' },
+  guichardSud: { id: 46026, terminus: 'St-Genis-Laval Hôp. Sud', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB' },
+  guillotiereVenissieux: { id: 30199, terminus: 'Gare de Vénissieux', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD' },
+  guillotiereVaise: { id: 30200, terminus: 'Gare de Vaise-G.Collomb', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD' },
 } as const satisfies Record<string, StopConfig>
 
 type StopKey = keyof typeof STOPS
+
+// Un slide par ligne (tram / métro B / métro D), regroupant les deux sens en
+// colonnes — l'ordre des clés dans STOPS fixe l'ordre des colonnes.
+const LINE_GROUPS: { line: StopConfig['line']; stopKeys: StopKey[] }[] = (['tram', 'metroB', 'metroD'] as const).map(
+  (line) => ({
+    line,
+    stopKeys: (Object.keys(STOPS) as StopKey[]).filter((key) => STOPS[key].line === line),
+  }),
+)
 
 interface Departure {
   destination: string
@@ -63,8 +75,21 @@ const departures = ref<Record<StopKey, Departure[]>>(
 )
 
 function parseDelai(delaipassage: string): number {
-  const match = /^(\d+)/.exec(delaipassage)
-  return match ? Number(match[1]) : 0 // "Proche" ou autre libellé imminent
+  const minMatch = /^(\d+)\s*min$/.exec(delaipassage)
+  if (minMatch) return Number(minMatch[1])
+
+  // Au-delà d'un certain délai, l'API bascule sur une heure absolue ("15h53")
+  // plutôt qu'un nombre de minutes — sans ce cas, "15h53" serait lu comme "15".
+  const clockMatch = /^(\d{1,2})h(\d{2})$/.exec(delaipassage)
+  if (clockMatch) {
+    const target = new Date()
+    target.setHours(Number(clockMatch[1]), Number(clockMatch[2]), 0, 0)
+    let diffMin = Math.round((target.getTime() - Date.now()) / 60_000)
+    if (diffMin < 0) diffMin += 24 * 60 // passage après minuit
+    return diffMin
+  }
+
+  return 0 // "Proche" ou autre libellé imminent
 }
 
 async function fetchTclDepartures() {
@@ -127,20 +152,22 @@ interface Slide {
 
 const slides = computed<Slide[]>(() => [
   { key: 'clock', component: markRaw(ClockSlide), duration: SLIDE_DURATION_MS },
-  ...(Object.keys(STOPS) as StopKey[]).map((key) => {
-    const stop = STOPS[key]
+  ...LINE_GROUPS.map(({ line, stopKeys }) => {
+    const first = STOPS[stopKeys[0]]
     return {
-      key,
+      key: line,
       component: markRaw(TransitSlide),
       props: {
-        mode: stop.mode,
-        lineLabel: stop.lineLabel,
-        lineColor: stop.lineColor,
+        mode: first.mode,
+        lineLabel: first.lineLabel,
+        lineColor: first.lineColor,
         lineTextColor: '#ffffff',
-        station: stop.station,
-        direction: stop.terminus,
-        departures: departures.value[key],
-        errorMessage: tclError.value,
+        station: first.station,
+        columns: stopKeys.map((key) => ({
+          direction: STOPS[key].terminus,
+          departures: departures.value[key],
+          errorMessage: tclError.value,
+        })),
       },
       duration: TRANSIT_SLIDE_DURATION_MS,
     }
