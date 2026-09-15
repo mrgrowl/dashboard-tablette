@@ -35,7 +35,7 @@ function formatWhen(e: CalendarEvent): string {
 
     <p v-if="error" class="error">{{ error }}</p>
     <ul v-else-if="upcoming.length > 0" class="list">
-      <li v-for="(e, i) in upcoming" :key="i" class="item">
+      <li v-for="(e, i) in upcoming" :key="i" class="item" :style="{ '--i': i }">
         <span class="when">{{ formatWhen(e) }}</span>
         <span class="summary">{{ e.summary }}</span>
       </li>
@@ -99,6 +99,15 @@ function formatWhen(e: CalendarEvent): string {
   background: var(--bg-elevated, rgba(255, 255, 255, 0.04));
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.06);
+  animation: row-in 0.5s ease both;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
 }
 
 .when {

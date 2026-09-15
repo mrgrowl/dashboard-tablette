@@ -133,6 +133,13 @@ const cells = computed<DayCell[]>(() => {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: clamp(0.4rem, 1vw, 0.7rem);
+  animation: fade-in 0.5s ease both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .weekday {
@@ -162,6 +169,17 @@ const cells = computed<DayCell[]>(() => {
 
 .cell.today {
   background: var(--accent, #4dd0c7);
+  animation: today-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes today-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(77, 208, 199, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(77, 208, 199, 0);
+  }
 }
 
 .day-number {
@@ -195,6 +213,14 @@ const cells = computed<DayCell[]>(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  animation: chip-in 0.35s ease both;
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
 }
 
 .overflow {

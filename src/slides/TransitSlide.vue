@@ -66,6 +66,7 @@ withDefaults(
               :key="d.destination + di"
               class="departure"
               :class="{ last: d.isLast }"
+              :style="{ '--i': di }"
             >
               <span class="dest">
                 {{ d.destination }}
@@ -108,6 +109,19 @@ withDefaults(
   filter: blur(120px);
   opacity: 0.25;
   pointer-events: none;
+  animation: glow-pulse 7s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.18;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.06);
+  }
 }
 
 .head {
@@ -128,6 +142,14 @@ withDefaults(
   font-weight: 800;
   font-size: clamp(1.2rem, 2.4vw, 1.7rem);
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+  animation: badge-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes badge-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
 }
 
 .mode {
@@ -206,6 +228,15 @@ h2.direction {
   background: var(--bg-elevated);
   border-radius: 0.9rem;
   border: 1px solid rgba(255, 255, 255, 0.06);
+  animation: row-in 0.5s ease both;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
 }
 
 .dest {
@@ -223,6 +254,17 @@ h2.direction {
 
 .minutes.soon {
   color: #ff6b6b;
+  animation: soon-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes soon-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 
 .departure.last {
@@ -242,6 +284,17 @@ h2.direction {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   vertical-align: middle;
+  animation: badge-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .no-more {
