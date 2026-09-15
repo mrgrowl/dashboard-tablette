@@ -7,9 +7,14 @@ const props = defineProps<{
   error?: string | null
 }>()
 
+// Évènements récurrents perso à masquer de cette vue (pas du calendrier mensuel).
+const HIDDEN_SUMMARIES = ['Cours', 'Entreprise']
+
 const upcoming = computed(() => {
   const now = new Date()
-  return props.events.filter((e) => e.end >= now).slice(0, 6)
+  return props.events
+    .filter((e) => e.end >= now && !HIDDEN_SUMMARIES.includes(e.summary))
+    .slice(0, 6)
 })
 
 function formatWhen(e: CalendarEvent): string {

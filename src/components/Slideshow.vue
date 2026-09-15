@@ -11,6 +11,7 @@ const { isFullscreen } = useFullscreen()
 const { events: calendarEvents, error: calendarError, startCalendarPolling, stopCalendarPolling } = useCalendar()
 
 const SLIDE_DURATION_MS = 30_000
+const TRANSIT_SLIDE_DURATION_MS = 15_000 // métro/tram tournent plus vite que le reste
 const TCL_REFRESH_MS = 25_000
 
 // Identifiants du compte "plateforme Data" Grand Lyon, fournis au build via
@@ -121,10 +122,11 @@ interface Slide {
   key: string
   component: unknown
   props?: Record<string, unknown>
+  duration: number
 }
 
 const slides = computed<Slide[]>(() => [
-  { key: 'clock', component: markRaw(ClockSlide) },
+  { key: 'clock', component: markRaw(ClockSlide), duration: SLIDE_DURATION_MS },
   ...(Object.keys(STOPS) as StopKey[]).map((key) => {
     const stop = STOPS[key]
     return {
@@ -140,6 +142,7 @@ const slides = computed<Slide[]>(() => [
         departures: departures.value[key],
         errorMessage: tclError.value,
       },
+      duration: TRANSIT_SLIDE_DURATION_MS,
     }
   }),
   {
@@ -149,6 +152,7 @@ const slides = computed<Slide[]>(() => [
       events: calendarEvents.value,
       error: calendarError.value,
     },
+    duration: SLIDE_DURATION_MS,
   },
   {
     key: 'events',
@@ -157,6 +161,7 @@ const slides = computed<Slide[]>(() => [
       events: calendarEvents.value,
       error: calendarError.value,
     },
+    duration: SLIDE_DURATION_MS,
   },
 ])
 
@@ -178,9 +183,14 @@ function next() {
   current.value = (current.value + 1) % slides.value.length
 }
 
+// setTimeout récursif (pas setInterval) : chaque diapo a sa propre durée
+// (voir TRANSIT_SLIDE_DURATION_MS), relue à chaque cycle via currentSlide.
 function restartSlideTimer() {
-  window.clearInterval(slideTimer)
-  slideTimer = window.setInterval(next, SLIDE_DURATION_MS)
+  window.clearTimeout(slideTimer)
+  slideTimer = window.setTimeout(() => {
+    next()
+    restartSlideTimer()
+  }, currentSlide.value.duration)
 }
 
 onMounted(() => {
@@ -192,7 +202,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  window.clearInterval(slideTimer)
+  window.clearTimeout(slideTimer)
   window.clearInterval(tclTimer)
   window.clearInterval(clockTimer)
   stopCalendarPolling()
