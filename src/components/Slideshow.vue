@@ -6,142 +6,14 @@ import CalendarSlide from '../slides/CalendarSlide.vue'
 import EventsSlide from '../slides/EventsSlide.vue'
 import { useFullscreen } from '../composables/useFullscreen'
 import { useCalendar } from '../composables/useCalendar'
+import { useTcl, STOPS, LINE_GROUPS } from '../composables/useTcl'
 
 const { isFullscreen } = useFullscreen()
-const { events: calendarEvents, error: calendarError, startCalendarPolling, stopCalendarPolling } = useCalendar()
+const { startCalendarPolling, stopCalendarPolling } = useCalendar()
+const { startTclPolling, stopTclPolling } = useTcl()
 
 const SLIDE_DURATION_MS = 30_000
 const TRANSIT_SLIDE_DURATION_MS = 15_000 // métro/tram tournent plus vite que le reste
-const TCL_REFRESH_MS = 25_000
-
-// Identifiants du compte "plateforme Data" Grand Lyon, fournis au build via
-// variable d'env (voir .env.example). Fixes pour la durée de vie du build.
-const TCL_LOGIN = import.meta.env.VITE_TCL_LOGIN || ''
-const TCL_PASSWORD = import.meta.env.VITE_TCL_PASSWORD || ''
-
-const tclError = ref<string | null>(null)
-
-const TCL_PASSAGES_URL =
-  'https://data.grandlyon.com/fr/datapusher/ws/rdata/tcl_sytral.tclpassagearret/all.json?maxfeatures=-1&start=1'
-
-interface StopConfig {
-  id: number
-  terminus: string
-  mode: 'metro' | 'tramway'
-  lineLabel: string
-  lineColor: string
-  station: string
-  line: 'tram' | 'metroB' | 'metroD'
-}
-
-// Chaque ligne a des services partiels qui passent par l'arrêt sans aller
-// jusqu'au terminus complet (ex: T1 s'arrête parfois à La Doua, Palais Justice...
-// la ligne B s'arrête parfois à Stade de Gerland, Place Jean Jaurès...) : on ne
-// garde que les passages signés pour le terminus complet de chaque sens.
-const STOPS = {
-  liberteNord: { id: 32112, terminus: 'IUT Feyssine', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram' },
-  liberteSud: { id: 32113, terminus: 'Debourg', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram' },
-  guichardNord: { id: 46027, terminus: 'Charpennes Charles Hernu', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB' },
-  guichardSud: { id: 46026, terminus: 'St-Genis-Laval Hôp. Sud', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB' },
-  guillotiereVenissieux: { id: 30199, terminus: 'Gare de Vénissieux', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD' },
-  guillotiereVaise: { id: 30200, terminus: 'Gare de Vaise-G.Collomb', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD' },
-} as const satisfies Record<string, StopConfig>
-
-type StopKey = keyof typeof STOPS
-
-// Un slide par ligne (tram / métro B / métro D), regroupant les deux sens en
-// colonnes — l'ordre des clés dans STOPS fixe l'ordre des colonnes.
-const LINE_GROUPS: { line: StopConfig['line']; stopKeys: StopKey[] }[] = (['tram', 'metroB', 'metroD'] as const).map(
-  (line) => ({
-    line,
-    stopKeys: (Object.keys(STOPS) as StopKey[]).filter((key) => STOPS[key].line === line),
-  }),
-)
-
-interface Departure {
-  destination: string
-  minutes: number
-  isLast?: boolean
-}
-
-interface TclRow {
-  id: number
-  direction: string
-  delaipassage: string
-}
-
-const departures = ref<Record<StopKey, Departure[]>>(
-  Object.fromEntries(Object.keys(STOPS).map((key) => [key, [] as Departure[]])) as Record<StopKey, Departure[]>,
-)
-
-function parseDelai(delaipassage: string): number {
-  const minMatch = /^(\d+)\s*min$/.exec(delaipassage)
-  if (minMatch) return Number(minMatch[1])
-
-  // Au-delà d'un certain délai, l'API bascule sur une heure absolue ("15h53")
-  // plutôt qu'un nombre de minutes — sans ce cas, "15h53" serait lu comme "15".
-  const clockMatch = /^(\d{1,2})h(\d{2})$/.exec(delaipassage)
-  if (clockMatch) {
-    const target = new Date()
-    target.setHours(Number(clockMatch[1]), Number(clockMatch[2]), 0, 0)
-    let diffMin = Math.round((target.getTime() - Date.now()) / 60_000)
-    if (diffMin < 0) diffMin += 24 * 60 // passage après minuit
-    return diffMin
-  }
-
-  return 0 // "Proche" ou autre libellé imminent
-}
-
-async function fetchTclDepartures() {
-  if (!TCL_LOGIN || !TCL_PASSWORD) {
-    tclError.value = "Identifiants TCL manquants (variables d'env VITE_TCL_LOGIN / VITE_TCL_PASSWORD)."
-    return
-  }
-  try {
-    const auth = btoa(`${TCL_LOGIN}:${TCL_PASSWORD}`)
-    const res = await fetch(TCL_PASSAGES_URL, {
-      headers: { Authorization: `Basic ${auth}` },
-    })
-    if (res.status === 401) {
-      tclError.value = 'Identifiants TCL refusés par Grand Lyon.'
-      return
-    }
-    if (!res.ok) throw new Error(`Grand Lyon API ${res.status}`)
-    const data: { values: TclRow[] } = await res.json()
-
-    const byStop = Object.fromEntries(Object.keys(STOPS).map((key) => [key, [] as Departure[]])) as Record<
-      StopKey,
-      Departure[]
-    >
-    for (const row of data.values) {
-      for (const key of Object.keys(STOPS) as StopKey[]) {
-        const stop = STOPS[key]
-        if (row.id === stop.id && row.direction === stop.terminus) {
-          byStop[key].push({ destination: row.direction, minutes: parseDelai(row.delaipassage) })
-        }
-      }
-    }
-
-    const DISPLAY_COUNT = 3
-    const result = {} as Record<StopKey, Departure[]>
-    for (const key of Object.keys(byStop) as StopKey[]) {
-      const sorted = byStop[key].sort((a, b) => a.minutes - b.minutes)
-      const displayed = sorted.slice(0, DISPLAY_COUNT)
-      // Pas de 4e passage derrière dans la fenêtre temps réel (~60 min) : le
-      // dernier affiché est probablement le dernier de la soirée.
-      if (displayed.length > 0 && sorted.length < DISPLAY_COUNT + 1) {
-        displayed[displayed.length - 1] = { ...displayed[displayed.length - 1], isLast: true }
-      }
-      result[key] = displayed
-    }
-
-    departures.value = result
-    tclError.value = null
-  } catch (err) {
-    console.error('Erreur récupération des départs TCL', err)
-    tclError.value = 'Impossible de récupérer les horaires TCL.'
-  }
-}
 
 interface Slide {
   key: string
@@ -150,7 +22,15 @@ interface Slide {
   duration: number
 }
 
-const slides = computed<Slide[]>(() => [
+// Purement statique (STOPS/LINE_GROUPS ne changent jamais) : ne dépend d'aucune
+// donnée live (départs TCL, évènements calendrier...). C'est essentiel — si ce
+// tableau se recalculait à chaque rafraîchissement de données, le nœud transitionné
+// par <transition> changerait d'identité en plein fondu et gelait l'écran (le
+// composant recevait de nouvelles props pendant sa propre animation de sortie).
+// Chaque diapo va donc chercher ses données live elle-même via les composables
+// partagés (useTcl/useCalendar), qui se mettent à jour sans jamais toucher à
+// cette liste ni à la diapo actuellement affichée.
+const slides: Slide[] = [
   { key: 'clock', component: markRaw(ClockSlide), duration: SLIDE_DURATION_MS },
   ...LINE_GROUPS.map(({ line, stopKeys }) => {
     const first = STOPS[stopKeys[0]]
@@ -164,42 +44,43 @@ const slides = computed<Slide[]>(() => [
         lineTextColor: '#ffffff',
         station: first.station,
         columns: stopKeys.map((key) => ({
+          key,
           direction: STOPS[key].terminus,
-          departures: departures.value[key],
-          errorMessage: tclError.value,
         })),
       },
       duration: TRANSIT_SLIDE_DURATION_MS,
     }
   }),
-  {
-    key: 'calendar',
-    component: markRaw(CalendarSlide),
-    props: {
-      events: calendarEvents.value,
-      error: calendarError.value,
-    },
-    duration: SLIDE_DURATION_MS,
-  },
-  {
-    key: 'events',
-    component: markRaw(EventsSlide),
-    props: {
-      events: calendarEvents.value,
-      error: calendarError.value,
-    },
-    duration: SLIDE_DURATION_MS,
-  },
-])
+  { key: 'calendar', component: markRaw(CalendarSlide), duration: SLIDE_DURATION_MS },
+  { key: 'events', component: markRaw(EventsSlide), duration: SLIDE_DURATION_MS },
+]
 
 const current = ref(0)
-const currentSlide = computed(() => slides.value[current.value])
+const currentSlide = computed(() => slides[current.value])
 let slideTimer: number | undefined
-let tclTimer: number | undefined
 
 const now = ref(new Date())
 const timeLabel = computed(() => now.value.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }))
 let clockTimer: number | undefined
+
+// Filet de sécurité pour <transition mode="out-in"> : sortie et entrée
+// attendent chacune un événement transitionend pour continuer, et si cet
+// événement est raté (onglet en arrière-plan, perte de focus, changement de
+// diapo trop rapproché...), Vue reste bloqué indéfiniment sur un écran figé —
+// reproduit à volonté en testant (sortie ET entrée, séparément). On force donc
+// la suite nous-mêmes si l'événement ne vient pas, sans changer l'animation
+// CSS elle-même.
+function withTransitionFallback(el: Element, done: () => void) {
+  let finished = false
+  const finish = () => {
+    if (finished) return
+    finished = true
+    el.removeEventListener('transitionend', finish)
+    done()
+  }
+  el.addEventListener('transitionend', finish)
+  window.setTimeout(finish, 700) // durée du fondu (0.6s) + marge
+}
 
 function goTo(index: number) {
   current.value = index
@@ -207,7 +88,7 @@ function goTo(index: number) {
 }
 
 function next() {
-  current.value = (current.value + 1) % slides.value.length
+  current.value = (current.value + 1) % slides.length
 }
 
 // setTimeout récursif (pas setInterval) : chaque diapo a sa propre durée
@@ -222,23 +103,22 @@ function restartSlideTimer() {
 
 onMounted(() => {
   restartSlideTimer()
-  fetchTclDepartures()
-  tclTimer = window.setInterval(fetchTclDepartures, TCL_REFRESH_MS)
+  startTclPolling()
   startCalendarPolling()
   clockTimer = window.setInterval(() => (now.value = new Date()), 1000)
 })
 
 onUnmounted(() => {
   window.clearTimeout(slideTimer)
-  window.clearInterval(tclTimer)
   window.clearInterval(clockTimer)
+  stopTclPolling()
   stopCalendarPolling()
 })
 </script>
 
 <template>
   <div class="slideshow">
-    <transition name="fade" mode="out-in">
+    <transition name="fade" mode="out-in" @enter="withTransitionFallback" @leave="withTransitionFallback">
       <component :is="currentSlide.component" v-bind="currentSlide.props" :key="currentSlide.key" />
     </transition>
 

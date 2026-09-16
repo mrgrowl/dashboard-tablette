@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { CalendarEvent } from '../composables/useCalendar'
+import { useCalendar } from '../composables/useCalendar'
 
-const props = defineProps<{
-  events: CalendarEvent[]
-  error?: string | null
-}>()
+// Pas de props pour les données live : lues directement du composable partagé
+// pour ne jamais faire changer les props de ce composant depuis le parent au
+// gré des rafraîchissements (voir le commentaire dans Slideshow.vue).
+const { events, error } = useCalendar()
 
 const now = new Date()
 const monthLabel = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
@@ -28,7 +28,7 @@ const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
 const itemsByDay = computed(() => {
   const days = new Map<number, DayItem[]>()
-  for (const e of props.events) {
+  for (const e of events.value) {
     if (e.start.getMonth() === now.getMonth() && e.start.getFullYear() === now.getFullYear()) {
       const day = e.start.getDate()
       const list = days.get(day) ?? []

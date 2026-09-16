@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { CalendarEvent } from '../composables/useCalendar'
+import { useCalendar, type CalendarEvent } from '../composables/useCalendar'
 
-const props = defineProps<{
-  events: CalendarEvent[]
-  error?: string | null
-}>()
+// Pas de props pour les données live : lues directement du composable partagé
+// pour ne jamais faire changer les props de ce composant depuis le parent au
+// gré des rafraîchissements (voir le commentaire dans Slideshow.vue).
+const { events, error } = useCalendar()
 
 // Évènements récurrents perso à masquer de cette vue (pas du calendrier mensuel).
 const HIDDEN_SUMMARIES = ['Cours', 'Entreprise']
 
 const upcoming = computed(() => {
   const now = new Date()
-  return props.events
+  return events.value
     .filter((e) => e.end >= now && !HIDDEN_SUMMARIES.includes(e.summary))
     .slice(0, 6)
 })

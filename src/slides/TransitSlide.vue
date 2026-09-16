@@ -1,28 +1,39 @@
 <script setup lang="ts">
-interface Departure {
-  destination: string
-  minutes: number
-  isLast?: boolean
-}
+import { computed } from 'vue'
+import { useTcl, type StopKey } from '../composables/useTcl'
 
-interface Column {
+// Colonnes STABLES (juste la clé d'arrêt + le libellé de sens) : les données
+// live (départs, erreur, chargement) sont lues depuis useTcl() ci-dessous,
+// pas passées en prop — ça évite que ce composant reçoive de nouvelles props
+// (et donc change d'identité perçue par <transition>) à chaque rafraîchissement.
+interface ColumnDef {
+  key: StopKey
   direction: string
-  departures: Departure[]
-  errorMessage?: string | null
 }
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     mode: 'metro' | 'tramway'
     lineLabel: string
     lineColor: string
     lineTextColor?: string
     station: string
-    columns: Column[]
+    columns: ColumnDef[]
   }>(),
   {
     lineTextColor: '#0b0f14',
   },
+)
+
+const { departures, error, loading } = useTcl()
+
+const resolvedColumns = computed(() =>
+  props.columns.map((col) => ({
+    direction: col.direction,
+    departures: departures.value[col.key] ?? [],
+    errorMessage: error.value,
+    loading: loading.value,
+  })),
 )
 </script>
 
@@ -55,11 +66,12 @@ withDefaults(
     </header>
 
     <div class="columns">
-      <template v-for="(col, i) in columns" :key="i">
+      <template v-for="(col, i) in resolvedColumns" :key="i">
         <div class="column">
           <h2 class="direction">→ {{ col.direction }}</h2>
 
-          <p v-if="col.errorMessage" class="error">{{ col.errorMessage }}</p>
+          <p v-if="col.loading" class="loading">Chargement des horaires…</p>
+          <p v-else-if="col.errorMessage" class="error">{{ col.errorMessage }}</p>
           <ul v-else-if="col.departures.length > 0" class="departures">
             <li
               v-for="(d, di) in col.departures"
@@ -80,7 +92,7 @@ withDefaults(
           </ul>
           <p v-else class="no-more">Plus d'horaire ce soir !</p>
         </div>
-        <div v-if="i < columns.length - 1" class="divider" />
+        <div v-if="i < resolvedColumns.length - 1" class="divider" />
       </template>
     </div>
   </section>
@@ -307,6 +319,19 @@ h2.direction {
   font-size: clamp(1rem, 2.2vw, 1.4rem);
   font-weight: 700;
   text-align: center;
+}
+
+.loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: clamp(1rem, 2.2vw, 1.4rem);
+  font-weight: 700;
+  text-align: center;
+  animation: soon-pulse 1.6s ease-in-out infinite;
 }
 
 .error {
