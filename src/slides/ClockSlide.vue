@@ -17,13 +17,13 @@ onUnmounted(() => {
 const timeFormatter = new Intl.DateTimeFormat('fr-FR', {
   hour: '2-digit',
   minute: '2-digit',
-  second: '2-digit',
 })
 
 const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
   weekday: 'long',
   day: 'numeric',
   month: 'long',
+  year: 'numeric',
 })
 
 // Découpe en segments pour ne faire clignoter que les ":" (comme un réveil).
