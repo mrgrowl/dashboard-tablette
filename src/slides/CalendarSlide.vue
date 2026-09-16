@@ -10,7 +10,7 @@ const { events, error } = useCalendar()
 const now = new Date()
 const monthLabel = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
 
-const MAX_ITEMS = 3
+const MAX_ITEMS = 2 // moins d'étiquettes mais plus grandes/lisibles sur écran kiosque
 
 interface DayItem {
   summary: string
@@ -104,7 +104,7 @@ const cells = computed<DayCell[]>(() => {
   padding: clamp(1.5rem, 5vw, 4rem);
   display: flex;
   flex-direction: column;
-  gap: clamp(1.25rem, 3vw, 2rem);
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
 }
 
 .head {
@@ -115,7 +115,7 @@ const cells = computed<DayCell[]>(() => {
 
 .head h2 {
   margin: 0;
-  font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+  font-size: clamp(1rem, 1.6vw, 1.4rem);
   font-weight: 800;
   text-transform: capitalize;
 }
@@ -132,7 +132,7 @@ const cells = computed<DayCell[]>(() => {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: clamp(0.4rem, 1vw, 0.7rem);
+  gap: clamp(0.5rem, 1.1vw, 1rem);
   animation: fade-in 0.5s ease both;
 }
 
@@ -144,7 +144,7 @@ const cells = computed<DayCell[]>(() => {
 
 .weekday {
   text-align: center;
-  font-size: clamp(0.75rem, 1.4vw, 0.95rem);
+  font-size: clamp(0.9rem, 1.7vw, 1.4rem);
   color: var(--fg-muted, rgba(244, 246, 248, 0.5));
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -156,8 +156,8 @@ const cells = computed<DayCell[]>(() => {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.25rem;
-  padding: 0.35rem;
+  gap: clamp(0.3rem, 0.8vw, 0.6rem);
+  padding: clamp(0.5rem, 1.3vw, 1rem);
   border-radius: 0.7rem;
   background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
   overflow: hidden;
@@ -186,7 +186,7 @@ const cells = computed<DayCell[]>(() => {
   flex: none;
   align-self: flex-start;
   line-height: 1;
-  font-size: clamp(0.85rem, 1.8vw, 1.15rem);
+  font-size: clamp(1.1rem, 2.4vw, 2.2rem);
   font-weight: 700;
 }
 
@@ -198,18 +198,18 @@ const cells = computed<DayCell[]>(() => {
 .chips {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: clamp(0.2rem, 0.5vw, 0.4rem);
   min-width: 0;
 }
 
 .chip {
   display: block;
-  padding: 0.05rem 0.35rem;
-  border-radius: 0.3rem;
+  padding: clamp(0.15rem, 0.35vw, 0.3rem) clamp(0.45rem, 0.9vw, 0.7rem);
+  border-radius: 0.4rem;
   color: #0b0f14;
-  font-size: clamp(0.55rem, 1.1vw, 0.75rem);
+  font-size: clamp(0.85rem, 1.7vw, 1.4rem);
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -224,7 +224,7 @@ const cells = computed<DayCell[]>(() => {
 }
 
 .overflow {
-  font-size: clamp(0.5rem, 1vw, 0.65rem);
+  font-size: clamp(0.75rem, 1.4vw, 1.1rem);
   font-weight: 700;
   color: var(--fg-muted, rgba(244, 246, 248, 0.6));
   padding-left: 0.2rem;
