@@ -64,7 +64,7 @@ function formatWhen(e: CalendarEvent): string {
 
 .head h2 {
   margin: 0;
-  font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+  font-size: clamp(1.6rem, 3.5vw, 3.4rem);
   font-weight: 800;
 }
 
@@ -75,7 +75,7 @@ function formatWhen(e: CalendarEvent): string {
   justify-content: center;
   margin: 0;
   color: #ff6b6b;
-  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  font-size: clamp(1.1rem, 2.4vw, 2.4rem);
   font-weight: 700;
   text-align: center;
 }
@@ -94,8 +94,8 @@ function formatWhen(e: CalendarEvent): string {
 .item {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: clamp(0.8rem, 2vw, 1.2rem) clamp(1.2rem, 3vw, 2rem);
+  gap: 0.3rem;
+  padding: clamp(0.8rem, 2vw, 1.8rem) clamp(1.2rem, 3vw, 2.8rem);
   background: var(--bg-elevated, rgba(255, 255, 255, 0.04));
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -111,19 +111,19 @@ function formatWhen(e: CalendarEvent): string {
 }
 
 .when {
-  font-size: clamp(0.8rem, 1.6vw, 1rem);
+  font-size: clamp(0.8rem, 1.6vw, 1.6rem);
   color: var(--accent, #4dd0c7);
   font-weight: 700;
   text-transform: capitalize;
 }
 
 .summary {
-  font-size: clamp(1.05rem, 2.4vw, 1.5rem);
+  font-size: clamp(1.05rem, 2.4vw, 2.6rem);
   font-weight: 600;
 }
 
 .empty {
   color: var(--fg-muted, rgba(244, 246, 248, 0.5));
-  font-size: 1.1rem;
+  font-size: clamp(1rem, 2vw, 1.8rem);
 }
 </style>

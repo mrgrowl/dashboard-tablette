@@ -68,7 +68,7 @@ const timeParts = computed(() => timeFormatter.formatToParts(now.value))
 }
 
 .date {
-  font-size: clamp(1.2rem, 3vw, 2rem);
+  font-size: clamp(1.2rem, 3vw, 2.6rem);
   color: var(--fg-muted);
   margin: 0;
   text-transform: capitalize;

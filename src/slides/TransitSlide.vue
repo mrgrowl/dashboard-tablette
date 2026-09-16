@@ -145,14 +145,14 @@ const resolvedColumns = computed(() =>
 
 .badge {
   flex: none;
-  width: clamp(3rem, 6vw, 4.5rem);
-  height: clamp(3rem, 6vw, 4.5rem);
+  width: clamp(3rem, 6vw, 7rem);
+  height: clamp(3rem, 6vw, 7rem);
   border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: clamp(1.2rem, 2.4vw, 1.7rem);
+  font-size: clamp(1.2rem, 2.4vw, 2.6rem);
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
   animation: badge-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
@@ -172,7 +172,7 @@ const resolvedColumns = computed(() =>
   color: var(--fg-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: clamp(0.8rem, 1.4vw, 1rem);
+  font-size: clamp(0.8rem, 1.4vw, 1.5rem);
 }
 
 .mode-icon {
@@ -183,7 +183,7 @@ const resolvedColumns = computed(() =>
 .station {
   margin: 0;
   color: var(--fg-muted);
-  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  font-size: clamp(1.1rem, 2.4vw, 2.6rem);
   font-weight: 700;
 }
 
@@ -212,7 +212,7 @@ const resolvedColumns = computed(() =>
 
 h2.direction {
   margin: 0;
-  font-size: clamp(1.3rem, 3vw, 2rem);
+  font-size: clamp(1.3rem, 3vw, 3.4rem);
   font-weight: 800;
   line-height: 1.15;
 }
@@ -236,7 +236,7 @@ h2.direction {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.3rem 0.6rem;
-  padding: clamp(0.7rem, 1.8vw, 1.1rem) clamp(0.9rem, 2.2vw, 1.4rem);
+  padding: clamp(0.7rem, 1.8vw, 1.8rem) clamp(0.9rem, 2.2vw, 2.2rem);
   background: var(--bg-elevated);
   border-radius: 0.9rem;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -252,14 +252,14 @@ h2.direction {
 }
 
 .dest {
-  font-size: clamp(0.9rem, 1.9vw, 1.25rem);
+  font-size: clamp(0.9rem, 1.9vw, 2.1rem);
   font-weight: 600;
   min-width: 0;
 }
 
 .minutes {
   font-variant-numeric: tabular-nums;
-  font-size: clamp(1.05rem, 2.2vw, 1.5rem);
+  font-size: clamp(1.05rem, 2.2vw, 2.6rem);
   font-weight: 700;
   color: var(--accent);
 }
@@ -316,7 +316,7 @@ h2.direction {
   justify-content: center;
   margin: 0;
   color: var(--fg-muted);
-  font-size: clamp(1rem, 2.2vw, 1.4rem);
+  font-size: clamp(1rem, 2.2vw, 2.3rem);
   font-weight: 700;
   text-align: center;
 }
@@ -328,7 +328,7 @@ h2.direction {
   justify-content: center;
   margin: 0;
   color: var(--fg-muted);
-  font-size: clamp(1rem, 2.2vw, 1.4rem);
+  font-size: clamp(1rem, 2.2vw, 2.3rem);
   font-weight: 700;
   text-align: center;
   animation: soon-pulse 1.6s ease-in-out infinite;
@@ -341,7 +341,7 @@ h2.direction {
   justify-content: center;
   margin: 0;
   color: #ff6b6b;
-  font-size: clamp(0.9rem, 1.9vw, 1.25rem);
+  font-size: clamp(0.9rem, 1.9vw, 2.1rem);
   font-weight: 700;
   text-align: center;
 }
