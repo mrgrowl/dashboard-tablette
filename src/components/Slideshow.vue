@@ -5,10 +5,12 @@ import TransitSlide from '../slides/TransitSlide.vue'
 import CalendarSlide from '../slides/CalendarSlide.vue'
 import EventsSlide from '../slides/EventsSlide.vue'
 import { useFullscreen } from '../composables/useFullscreen'
+import { useIdle } from '../composables/useIdle'
 import { useCalendar } from '../composables/useCalendar'
 import { useTcl, STOPS, LINE_GROUPS } from '../composables/useTcl'
 
 const { isFullscreen } = useFullscreen()
+const { isIdle } = useIdle()
 const { startCalendarPolling, stopCalendarPolling } = useCalendar()
 const { startTclPolling, stopTclPolling } = useTcl()
 
@@ -124,7 +126,7 @@ onUnmounted(() => {
 
     <div v-if="currentSlide.key !== 'clock'" class="mini-clock">{{ timeLabel }}</div>
 
-    <div v-if="!isFullscreen" class="dots">
+    <div v-if="!isFullscreen && !isIdle" class="dots">
       <button
         v-for="(slide, i) in slides"
         :key="slide.key"

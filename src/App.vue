@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import Slideshow from './components/Slideshow.vue'
 import { useFullscreen } from './composables/useFullscreen'
+import { useIdle } from './composables/useIdle'
 
 const { isFullscreen, enterFullscreen } = useFullscreen()
+const { isIdle } = useIdle()
 </script>
 
 <template>
   <Slideshow />
   <button
-    v-if="!isFullscreen"
+    v-if="!isFullscreen && !isIdle"
     class="fullscreen-toggle"
     aria-label="Passer en plein écran"
     @click="enterFullscreen"
