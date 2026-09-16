@@ -18,26 +18,31 @@ interface DayItem {
 }
 
 interface DayCell {
-  day: number | null
+  day: number
   isToday: boolean
+  isOtherMonth: boolean
   items: DayItem[]
   overflow: number
 }
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 
-const itemsByDay = computed(() => {
-  const days = new Map<number, DayItem[]>()
+function dateKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+}
+
+const itemsByDate = computed(() => {
+  const days = new Map<string, DayItem[]>()
   for (const e of events.value) {
-    if (e.start.getMonth() === now.getMonth() && e.start.getFullYear() === now.getFullYear()) {
-      const day = e.start.getDate()
-      const list = days.get(day) ?? []
-      list.push({ summary: e.summary, color: e.color })
-      days.set(day, list)
-    }
+    const key = dateKey(e.start)
+    const list = days.get(key) ?? []
+    list.push({ summary: e.summary, color: e.color })
+    days.set(key, list)
   }
   return days
 })
+
+const today = new Date()
 
 const cells = computed<DayCell[]>(() => {
   const year = now.getFullYear()
@@ -46,21 +51,24 @@ const cells = computed<DayCell[]>(() => {
   // Décale pour que la semaine commence le lundi (getDay(): 0=dimanche).
   const leadingBlanks = (firstOfMonth.getDay() + 6) % 7
   const daysInMonth = new Date(year, month + 1, 0).getDate()
+  // Complète la dernière semaine jusqu'au dimanche, sans jamais laisser de trou.
+  const trailingBlanks = (7 - ((leadingBlanks + daysInMonth) % 7)) % 7
 
-  const result: DayCell[] = []
-  for (let i = 0; i < leadingBlanks; i++) {
-    result.push({ day: null, isToday: false, items: [], overflow: 0 })
-  }
-  for (let day = 1; day <= daysInMonth; day++) {
-    const items = itemsByDay.value.get(day) ?? []
-    result.push({
-      day,
-      isToday: day === now.getDate(),
+  const dates: Date[] = []
+  for (let i = leadingBlanks; i > 0; i--) dates.push(new Date(year, month, 1 - i))
+  for (let day = 1; day <= daysInMonth; day++) dates.push(new Date(year, month, day))
+  for (let i = 1; i <= trailingBlanks; i++) dates.push(new Date(year, month + 1, i))
+
+  return dates.map((date) => {
+    const items = itemsByDate.value.get(dateKey(date)) ?? []
+    return {
+      day: date.getDate(),
+      isToday: dateKey(date) === dateKey(today),
+      isOtherMonth: date.getMonth() !== month,
       items: items.slice(0, MAX_ITEMS),
       overflow: Math.max(0, items.length - MAX_ITEMS),
-    })
-  }
-  return result
+    }
+  })
 })
 </script>
 
@@ -77,9 +85,9 @@ const cells = computed<DayCell[]>(() => {
         v-for="(cell, i) in cells"
         :key="i"
         class="cell"
-        :class="{ empty: cell.day === null, today: cell.isToday }"
+        :class="{ 'other-month': cell.isOtherMonth, today: cell.isToday }"
       >
-        <span v-if="cell.day !== null" class="day-number">{{ cell.day }}</span>
+        <span class="day-number">{{ cell.day }}</span>
         <div v-if="cell.items.length > 0" class="chips">
           <span
             v-for="(item, i) in cell.items"
@@ -163,8 +171,9 @@ const cells = computed<DayCell[]>(() => {
   overflow: hidden;
 }
 
-.cell.empty {
+.cell.other-month {
   background: transparent;
+  opacity: 0.35;
 }
 
 .cell.today {
