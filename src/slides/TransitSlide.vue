@@ -9,8 +9,11 @@ import { useTcl, type StopKey } from '../composables/useTcl'
 interface ColumnDef {
   key: StopKey
   direction: string
-  prevStop: string
-  nextStop: string
+  // Toutes les stations de la ligne, dans le sens de `direction` (voir
+  // getRouteStations) — sert à dessiner la mini-carte de suivi avec un point
+  // par station réelle, pas seulement les 3 les plus proches.
+  stations: string[]
+  ourIndex: number
 }
 
 const props = withDefaults(
@@ -31,39 +34,44 @@ const { departures, error, loading } = useTcl()
 
 // Pas de position GPS réelle disponible pour ces lignes (le flux temps réel
 // SIRI-Lite de Grand Lyon couvre les bus et T2-T7, mais ni T1 ni le métro) :
-// on approxime la position du prochain véhicule en supposant un temps de
-// trajet moyen entre l'arrêt précédent et notre arrêt, et on en déduit une
-// progression 0→100 % à partir du compte à rebours déjà affiché. Le marqueur
-// ne parcourt donc que le segment "arrêt précédent → notre arrêt" (le seul
-// pour lequel on a une estimation) ; le segment suivant n'est affiché que
-// comme repère de direction, sans animation.
+// on approxime la position de CHAQUE véhicule annoncé (pas seulement le
+// prochain) en supposant un temps de trajet moyen constant entre deux
+// stations, ce qui donne un nombre de stations d'écart avec notre arrêt à
+// partir du compte à rebours déjà affiché — puis on replace ce point dans
+// la vraie liste des stations de la ligne.
 const AVERAGE_LEG_MINUTES: Record<'metro' | 'tramway', number> = {
   tramway: 3,
   metro: 2,
 }
 
-// Position du marqueur sur la piste à 3 points (arrêt précédent = 0,
-// notre arrêt = 50, arrêt suivant = 100) : 0→50 pendant l'approche.
-function trackingPosition(minutes: number): number {
-  const leg = AVERAGE_LEG_MINUTES[props.mode]
-  const legProgress = Math.min(1, Math.max(0, 1 - minutes / leg))
-  return Math.round(legProgress * 50)
-}
-
 const resolvedColumns = computed(() =>
   props.columns.map((col) => {
     const stopDepartures = departures.value[col.key] ?? []
+    const totalSegments = col.stations.length - 1
+    const leg = AVERAGE_LEG_MINUTES[props.mode]
+
+    const markers = stopDepartures.map((d) => {
+      const stopsAway = d.minutes / leg
+      const fractionalIndex = Math.min(col.ourIndex, Math.max(0, col.ourIndex - stopsAway))
+      return { minutes: d.minutes, position: (fractionalIndex / totalSegments) * 100 }
+    })
+
     return {
       direction: col.direction,
-      prevStop: col.prevStop,
-      nextStop: col.nextStop,
+      stations: col.stations,
+      ourIndex: col.ourIndex,
+      totalSegments,
       departures: stopDepartures,
       errorMessage: error.value,
       loading: loading.value,
-      trackingPosition: stopDepartures.length > 0 ? trackingPosition(stopDepartures[0].minutes) : null,
+      markers,
     }
   }),
 )
+
+function stationPosition(index: number, totalSegments: number): number {
+  return (index / totalSegments) * 100
+}
 </script>
 
 <template>
@@ -99,18 +107,43 @@ const resolvedColumns = computed(() =>
         <div class="column">
           <h2 class="direction">→ {{ col.direction }}</h2>
 
-          <div v-if="col.trackingPosition !== null" class="route">
+          <div v-if="col.markers.length > 0" class="route">
             <div class="route-track">
-              <div class="route-fill" :style="{ width: col.trackingPosition + '%' }" />
-              <div class="route-point" style="left: 0%" />
-              <div class="route-point route-point--here" style="left: 50%" />
-              <div class="route-point" style="left: 100%" />
-              <div class="route-marker" :style="{ left: col.trackingPosition + '%', background: lineColor, color: lineColor }" />
+              <div class="route-fill" :style="{ width: col.markers[0].position + '%' }" />
+              <div
+                v-for="(name, si) in col.stations"
+                :key="name + si"
+                class="route-point"
+                :class="{ 'route-point--here': si === col.ourIndex }"
+                :style="{ left: stationPosition(si, col.totalSegments) + '%' }"
+              />
+              <div
+                v-for="(m, mi) in col.markers"
+                :key="'marker' + mi"
+                class="route-marker"
+                :class="{ 'route-marker--next': mi > 0 }"
+                :style="{ left: m.position + '%', background: lineColor, color: lineColor }"
+              >
+                <svg v-if="mode === 'metro'" viewBox="0 0 24 24" class="route-marker-icon" aria-hidden="true">
+                  <path
+                    :fill="lineTextColor"
+                    d="M12 2c-4.4 0-8 .5-8 4v9.5A3.5 3.5 0 0 0 7.5 19L6 20.5v.5h2.2l2-2h3.6l2 2H18v-.5L16.5 19A3.5 3.5 0 0 0 20 15.5V6c0-3.5-3.6-4-8-4Zm-4.5 4h9a1 1 0 0 1 1 1v3.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1ZM8 15.75a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Zm8 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Z"
+                  />
+                </svg>
+                <svg v-else viewBox="0 0 24 24" class="route-marker-icon" aria-hidden="true">
+                  <path
+                    :fill="lineTextColor"
+                    d="M4 16.5V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10.5a2.5 2.5 0 0 1-2.5 2.5H18l1.5 2v.5h-2l-1.5-2h-7.9l-1.5 2H5v-.5L6.5 19H6.5A2.5 2.5 0 0 1 4 16.5ZM6.5 6a.5.5 0 0 0-.5.5V10h12V6.5a.5.5 0 0 0-.5-.5ZM6 12v3.5c0 .28.22.5.5.5h11a.5.5 0 0 0 .5-.5V12Zm1.5 2.25a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm9 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"
+                  />
+                </svg>
+              </div>
             </div>
             <div class="route-labels">
-              <span class="route-label">{{ col.prevStop }}</span>
+              <span class="route-label">{{ col.stations[col.ourIndex - 1] }}</span>
               <span class="route-label route-label--here">{{ station }}</span>
-              <span class="route-label route-label--muted">{{ col.nextStop }}</span>
+              <span v-if="col.ourIndex + 1 < col.stations.length" class="route-label route-label--muted">{{
+                col.stations[col.ourIndex + 1]
+              }}</span>
             </div>
             <span class="route-caption">Position estimée</span>
           </div>
@@ -297,34 +330,58 @@ h2.direction {
   transition: width 1s ease;
 }
 
+/* Un point par station réelle de la ligne (jusqu'à 27 pour T1) : petits
+   pour ne pas surcharger, notre arrêt ressort par la taille + la couleur. */
 .route-point {
   position: absolute;
   top: 50%;
-  width: 0.6rem;
-  height: 0.6rem;
+  width: 0.3rem;
+  height: 0.3rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.3);
   transform: translate(-50%, -50%);
 }
 
 .route-point--here {
-  width: 0.8rem;
-  height: 0.8rem;
+  width: 0.85rem;
+  height: 0.85rem;
   background: var(--fg);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
 }
 
 /* Marqueur du véhicule : nettement plus visible que les arrêts (plus grand,
-   couleur de la ligne, halo lumineux + pulsation) — c'est le point demandé. */
+   logo tram/métro, couleur de la ligne, halo lumineux + pulsation) — c'est
+   le point demandé, pour qu'on le distingue au premier coup d'œil des ronds
+   d'arrêt. */
 .route-marker {
   position: absolute;
   top: 50%;
-  width: clamp(1rem, 2.2vw, 1.5rem);
-  height: clamp(1rem, 2.2vw, 1.5rem);
+  width: clamp(1.4rem, 3vw, 2rem);
+  height: clamp(1.4rem, 3vw, 2rem);
   border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transform: translate(-50%, -50%);
   box-shadow: 0 0 0 3px #0b0f14, 0 0 14px 3px currentColor;
   transition: left 1s ease;
   animation: marker-pulse 1.8s ease-in-out infinite;
+}
+
+.route-marker-icon {
+  width: 62%;
+  height: 62%;
+}
+
+/* Véhicules suivants (2e/3e passage) : même logo, mais plus discrets et sans
+   pulsation — pour que le plus proche (celui qui arrive) reste le repère
+   principal, tout en montrant qu'il y en a d'autres derrière. */
+.route-marker--next {
+  width: clamp(1.1rem, 2.4vw, 1.6rem);
+  height: clamp(1.1rem, 2.4vw, 1.6rem);
+  opacity: 0.55;
+  animation: none;
+  box-shadow: 0 0 0 3px #0b0f14, 0 0 8px 1px currentColor;
 }
 
 @keyframes marker-pulse {

@@ -19,12 +19,6 @@ export interface StopConfig {
   lineColor: string
   station: string
   line: 'tram' | 'metroB' | 'metroD'
-  // Arrêt précédent/suivant réels sur la ligne, dans le sens de ce `terminus`
-  // (source : ordre officiel des stations T1/B/D) — sert à dessiner la
-  // mini-carte de suivi (TransitSlide) avec de vrais noms d'arrêts autour de
-  // `station`, plutôt qu'une simple barre de progression sans repère.
-  prevStop: string
-  nextStop: string
 }
 
 export interface Departure {
@@ -44,12 +38,12 @@ interface TclRow {
 // la ligne B s'arrête parfois à Stade de Gerland, Place Jean Jaurès...) : on ne
 // garde que les passages signés pour le terminus complet de chaque sens.
 export const STOPS = {
-  liberteNord: { id: 32112, terminus: 'IUT Feyssine', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram', prevStop: 'Guillotière - Gabriel Péri', nextStop: 'Saxe - Préfecture' },
-  liberteSud: { id: 32113, terminus: 'Debourg', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram', prevStop: 'Saxe - Préfecture', nextStop: 'Guillotière - Gabriel Péri' },
-  guichardNord: { id: 46027, terminus: 'Charpennes Charles Hernu', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB', prevStop: 'Saxe - Gambetta', nextStop: 'Gare Part-Dieu Vivier Merle' },
-  guichardSud: { id: 46026, terminus: 'St-Genis-Laval Hôp. Sud', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB', prevStop: 'Gare Part-Dieu Vivier Merle', nextStop: 'Saxe - Gambetta' },
-  guillotiereVenissieux: { id: 30199, terminus: 'Gare de Vénissieux', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD', prevStop: 'Bellecour', nextStop: 'Saxe - Gambetta' },
-  guillotiereVaise: { id: 30200, terminus: 'Gare de Vaise-G.Collomb', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD', prevStop: 'Saxe - Gambetta', nextStop: 'Bellecour' },
+  liberteNord: { id: 32112, terminus: 'IUT Feyssine', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram' },
+  liberteSud: { id: 32113, terminus: 'Debourg', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram' },
+  guichardNord: { id: 46027, terminus: 'Charpennes Charles Hernu', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB' },
+  guichardSud: { id: 46026, terminus: 'St-Genis-Laval Hôp. Sud', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB' },
+  guillotiereVenissieux: { id: 30199, terminus: 'Gare de Vénissieux', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD' },
+  guillotiereVaise: { id: 30200, terminus: 'Gare de Vaise-G.Collomb', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD' },
 } as const satisfies Record<string, StopConfig>
 
 export type StopKey = keyof typeof STOPS
@@ -62,6 +56,102 @@ export const LINE_GROUPS: { line: StopConfig['line']; stopKeys: StopKey[] }[] = 
   line,
   stopKeys: (Object.keys(STOPS) as StopKey[]).filter((key) => STOPS[key].line === line),
 }))
+
+// Ordre officiel réel des stations, dans UN sens de référence par ligne
+// (source : ordre des stations T1/B/D publié par SYTRAL) — sert à dessiner
+// la mini-carte de suivi (TransitSlide) avec de vrais arrêts, pas juste une
+// barre de progression abstraite. `ourIndex` repère notre arrêt configuré
+// dans ce tableau ; `getRouteStations` se charge d'inverser l'ordre pour le
+// sens retour.
+const LINE_STATIONS: Record<StopConfig['line'], { stations: string[]; ourIndex: number }> = {
+  tram: {
+    stations: [
+      'Debourg',
+      'ENS Lyon',
+      'Halle Tony-Garnier',
+      'Musée des Confluences',
+      'Hôtel de région - Montrochet',
+      'Sainte-Blandine',
+      'Place des Archives',
+      'Perrache',
+      'Quai Claude-Bernard',
+      "Rue de l'Université",
+      'Saint-André',
+      'Guillotière - Gabriel Péri',
+      'Liberté',
+      'Saxe - Préfecture',
+      'Palais de Justice - Mairie du 3e',
+      'Part-Dieu - Auditorium',
+      'Gare Part-Dieu - Vivier Merle',
+      'Thiers - Lafayette',
+      'Collège Bellecombe',
+      'Charpennes - Charles Hernu',
+      'Le Tonkin',
+      'Condorcet',
+      'Université Lyon 1',
+      'La Doua - Gaston Berger',
+      'INSA - Einstein',
+      'Croix-Luizet',
+      'IUT Feyssine',
+    ],
+    ourIndex: 12, // Liberté
+  },
+  metroB: {
+    stations: [
+      'Charpennes Charles Hernu',
+      'Brotteaux',
+      'Gare Part-Dieu Vivier Merle',
+      'Place Guichard',
+      'Saxe - Gambetta',
+      'Jean Macé',
+      'Place Jean Jaurès',
+      'Debourg',
+      'Stade de Gerland Le LOU',
+      "Gare d'Oullins",
+      'Oullins Centre',
+      'St-Genis-Laval Hôp. Sud',
+    ],
+    ourIndex: 3, // Place Guichard
+  },
+  metroD: {
+    stations: [
+      'Gare de Vaise-G.Collomb',
+      'Valmy',
+      'Gorge de Loup',
+      'Vieux Lyon - Cathédrale St-Jean',
+      'Bellecour',
+      'Guillotière - Gabriel Péri',
+      'Saxe - Gambetta',
+      'Garibaldi',
+      'Sans-Souci',
+      'Monplaisir - Lumière',
+      'Grange Blanche',
+      'Laënnec',
+      'Mermoz - Pinel',
+      'Parilly',
+      'Gare de Vénissieux',
+    ],
+    ourIndex: 5, // Guillotière
+  },
+}
+
+// Renvoie la liste des stations dans le sens de circulation de `key` (donc
+// vers son `terminus`), avec l'index de notre arrêt dans cette liste.
+export function getRouteStations(key: StopKey): { stations: string[]; ourIndex: number } {
+  const stop = STOPS[key]
+  const { stations, ourIndex } = LINE_STATIONS[stop.line]
+  const forward = stations[stations.length - 1] === stop.terminus
+  const backward = stations[0] === stop.terminus
+  if (!forward && !backward) {
+    // Le libellé de `terminus` (utilisé aussi pour matcher les passages TCL)
+    // ne correspond à aucune extrémité de LINE_STATIONS : sans ce garde-fou,
+    // on choisirait silencieusement le mauvais sens (bug vécu : "IUT -
+    // Feyssine" vs "IUT Feyssine" inversait 3 des 6 directions).
+    throw new Error(`getRouteStations: terminus "${stop.terminus}" absent de LINE_STATIONS["${stop.line}"]`)
+  }
+  if (forward) return { stations, ourIndex }
+  return { stations: [...stations].reverse(), ourIndex: stations.length - 1 - ourIndex }
+}
 
 const departures = ref<Record<StopKey, Departure[]>>(
   Object.fromEntries(Object.keys(STOPS).map((key) => [key, [] as Departure[]])) as Record<StopKey, Departure[]>,

@@ -8,7 +8,7 @@ import WeatherSlide from '../slides/WeatherSlide.vue'
 import { useFullscreen } from '../composables/useFullscreen'
 import { useIdle } from '../composables/useIdle'
 import { useCalendar } from '../composables/useCalendar'
-import { useTcl, STOPS, LINE_GROUPS } from '../composables/useTcl'
+import { useTcl, STOPS, LINE_GROUPS, getRouteStations } from '../composables/useTcl'
 import { useWeather } from '../composables/useWeather'
 
 const { isFullscreen } = useFullscreen()
@@ -48,12 +48,15 @@ const slides: Slide[] = [
         lineColor: first.lineColor,
         lineTextColor: '#ffffff',
         station: first.station,
-        columns: stopKeys.map((key) => ({
-          key,
-          direction: STOPS[key].terminus,
-          prevStop: STOPS[key].prevStop,
-          nextStop: STOPS[key].nextStop,
-        })),
+        columns: stopKeys.map((key) => {
+          const { stations, ourIndex } = getRouteStations(key)
+          return {
+            key,
+            direction: STOPS[key].terminus,
+            stations,
+            ourIndex,
+          }
+        }),
       },
       duration: TRANSIT_SLIDE_DURATION_MS,
     }
