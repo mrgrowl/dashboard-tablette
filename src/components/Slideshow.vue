@@ -4,15 +4,18 @@ import ClockSlide from '../slides/ClockSlide.vue'
 import TransitSlide from '../slides/TransitSlide.vue'
 import CalendarSlide from '../slides/CalendarSlide.vue'
 import EventsSlide from '../slides/EventsSlide.vue'
+import WeatherSlide from '../slides/WeatherSlide.vue'
 import { useFullscreen } from '../composables/useFullscreen'
 import { useIdle } from '../composables/useIdle'
 import { useCalendar } from '../composables/useCalendar'
 import { useTcl, STOPS, LINE_GROUPS } from '../composables/useTcl'
+import { useWeather } from '../composables/useWeather'
 
 const { isFullscreen } = useFullscreen()
 const { isIdle } = useIdle()
 const { startCalendarPolling, stopCalendarPolling } = useCalendar()
 const { startTclPolling, stopTclPolling } = useTcl()
+const { startWeatherPolling, stopWeatherPolling } = useWeather()
 
 const SLIDE_DURATION_MS = 30_000
 const TRANSIT_SLIDE_DURATION_MS = 15_000 // métro/tram tournent plus vite que le reste
@@ -55,6 +58,13 @@ const slides: Slide[] = [
   }),
   { key: 'calendar', component: markRaw(CalendarSlide), duration: SLIDE_DURATION_MS },
   { key: 'events', component: markRaw(EventsSlide), duration: SLIDE_DURATION_MS },
+  { key: 'weather-today', component: markRaw(WeatherSlide), props: { day: 'today' }, duration: SLIDE_DURATION_MS },
+  {
+    key: 'weather-tomorrow',
+    component: markRaw(WeatherSlide),
+    props: { day: 'tomorrow' },
+    duration: SLIDE_DURATION_MS,
+  },
 ]
 
 const current = ref(0)
@@ -107,6 +117,7 @@ onMounted(() => {
   restartSlideTimer()
   startTclPolling()
   startCalendarPolling()
+  startWeatherPolling()
   clockTimer = window.setInterval(() => (now.value = new Date()), 1000)
 })
 
@@ -115,6 +126,7 @@ onUnmounted(() => {
   window.clearInterval(clockTimer)
   stopTclPolling()
   stopCalendarPolling()
+  stopWeatherPolling()
 })
 </script>
 
@@ -153,14 +165,16 @@ onUnmounted(() => {
 
 .mini-clock {
   position: absolute;
-  left: max(1.5rem, env(safe-area-inset-left));
-  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  /* Décalé sous le bouton plein écran (top-right, ~2.5rem + 1rem de marge)
+     pour ne jamais se chevaucher avec lui. */
+  top: max(4.5rem, calc(env(safe-area-inset-top) + 4.5rem));
+  right: max(1.5rem, env(safe-area-inset-right));
   z-index: 10;
   font-variant-numeric: tabular-nums;
-  font-size: clamp(0.85rem, 1.6vw, 1.1rem);
-  font-weight: 600;
+  font-size: clamp(1.1rem, 2.4vw, 1.9rem);
+  font-weight: 700;
   letter-spacing: 0.02em;
-  color: rgba(244, 246, 248, 0.55);
+  color: rgba(244, 246, 248, 0.85);
 }
 
 .dots {

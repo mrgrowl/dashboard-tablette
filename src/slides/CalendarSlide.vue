@@ -119,6 +119,10 @@ const cells = computed<DayCell[]>(() => {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  /* Laisse la place à l'horloge globale (Slideshow.vue), affichée en overlay
+     en haut à droite de chaque diapo — pertinent seulement quand .error
+     s'affiche (dans ce coin), mais gratuit sinon. */
+  padding-right: clamp(6rem, 10vw, 8rem);
 }
 
 .head h2 {
