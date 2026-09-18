@@ -51,6 +51,8 @@ const slides: Slide[] = [
         columns: stopKeys.map((key) => ({
           key,
           direction: STOPS[key].terminus,
+          prevStop: STOPS[key].prevStop,
+          nextStop: STOPS[key].nextStop,
         })),
       },
       duration: TRANSIT_SLIDE_DURATION_MS,

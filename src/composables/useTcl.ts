@@ -19,6 +19,12 @@ export interface StopConfig {
   lineColor: string
   station: string
   line: 'tram' | 'metroB' | 'metroD'
+  // Arrêt précédent/suivant réels sur la ligne, dans le sens de ce `terminus`
+  // (source : ordre officiel des stations T1/B/D) — sert à dessiner la
+  // mini-carte de suivi (TransitSlide) avec de vrais noms d'arrêts autour de
+  // `station`, plutôt qu'une simple barre de progression sans repère.
+  prevStop: string
+  nextStop: string
 }
 
 export interface Departure {
@@ -38,12 +44,12 @@ interface TclRow {
 // la ligne B s'arrête parfois à Stade de Gerland, Place Jean Jaurès...) : on ne
 // garde que les passages signés pour le terminus complet de chaque sens.
 export const STOPS = {
-  liberteNord: { id: 32112, terminus: 'IUT Feyssine', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram' },
-  liberteSud: { id: 32113, terminus: 'Debourg', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram' },
-  guichardNord: { id: 46027, terminus: 'Charpennes Charles Hernu', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB' },
-  guichardSud: { id: 46026, terminus: 'St-Genis-Laval Hôp. Sud', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB' },
-  guillotiereVenissieux: { id: 30199, terminus: 'Gare de Vénissieux', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD' },
-  guillotiereVaise: { id: 30200, terminus: 'Gare de Vaise-G.Collomb', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD' },
+  liberteNord: { id: 32112, terminus: 'IUT Feyssine', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram', prevStop: 'Guillotière - Gabriel Péri', nextStop: 'Saxe - Préfecture' },
+  liberteSud: { id: 32113, terminus: 'Debourg', mode: 'tramway', lineLabel: 'T1', lineColor: '#1565C0', station: 'Liberté', line: 'tram', prevStop: 'Saxe - Préfecture', nextStop: 'Guillotière - Gabriel Péri' },
+  guichardNord: { id: 46027, terminus: 'Charpennes Charles Hernu', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB', prevStop: 'Saxe - Gambetta', nextStop: 'Gare Part-Dieu Vivier Merle' },
+  guichardSud: { id: 46026, terminus: 'St-Genis-Laval Hôp. Sud', mode: 'metro', lineLabel: 'B', lineColor: '#D62828', station: 'Place Guichard', line: 'metroB', prevStop: 'Gare Part-Dieu Vivier Merle', nextStop: 'Saxe - Gambetta' },
+  guillotiereVenissieux: { id: 30199, terminus: 'Gare de Vénissieux', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD', prevStop: 'Bellecour', nextStop: 'Saxe - Gambetta' },
+  guillotiereVaise: { id: 30200, terminus: 'Gare de Vaise-G.Collomb', mode: 'metro', lineLabel: 'D', lineColor: '#F5871F', station: 'Guillotière', line: 'metroD', prevStop: 'Saxe - Gambetta', nextStop: 'Bellecour' },
 } as const satisfies Record<string, StopConfig>
 
 export type StopKey = keyof typeof STOPS

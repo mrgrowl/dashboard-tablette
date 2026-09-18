@@ -9,6 +9,8 @@ import { useTcl, type StopKey } from '../composables/useTcl'
 interface ColumnDef {
   key: StopKey
   direction: string
+  prevStop: string
+  nextStop: string
 }
 
 const props = withDefaults(
@@ -30,17 +32,22 @@ const { departures, error, loading } = useTcl()
 // Pas de position GPS réelle disponible pour ces lignes (le flux temps réel
 // SIRI-Lite de Grand Lyon couvre les bus et T2-T7, mais ni T1 ni le métro) :
 // on approxime la position du prochain véhicule en supposant un temps de
-// trajet moyen entre stations, et on en déduit une progression 0→100% à
-// partir du compte à rebours déjà affiché. C'est une estimation, jamais du
-// temps réel — d'où le libellé "Position estimée" dans le template.
+// trajet moyen entre l'arrêt précédent et notre arrêt, et on en déduit une
+// progression 0→100 % à partir du compte à rebours déjà affiché. Le marqueur
+// ne parcourt donc que le segment "arrêt précédent → notre arrêt" (le seul
+// pour lequel on a une estimation) ; le segment suivant n'est affiché que
+// comme repère de direction, sans animation.
 const AVERAGE_LEG_MINUTES: Record<'metro' | 'tramway', number> = {
   tramway: 3,
   metro: 2,
 }
 
-function trackingProgress(minutes: number): number {
+// Position du marqueur sur la piste à 3 points (arrêt précédent = 0,
+// notre arrêt = 50, arrêt suivant = 100) : 0→50 pendant l'approche.
+function trackingPosition(minutes: number): number {
   const leg = AVERAGE_LEG_MINUTES[props.mode]
-  return Math.round(Math.min(1, Math.max(0, 1 - minutes / leg)) * 100)
+  const legProgress = Math.min(1, Math.max(0, 1 - minutes / leg))
+  return Math.round(legProgress * 50)
 }
 
 const resolvedColumns = computed(() =>
@@ -48,10 +55,12 @@ const resolvedColumns = computed(() =>
     const stopDepartures = departures.value[col.key] ?? []
     return {
       direction: col.direction,
+      prevStop: col.prevStop,
+      nextStop: col.nextStop,
       departures: stopDepartures,
       errorMessage: error.value,
       loading: loading.value,
-      trackingProgress: stopDepartures.length > 0 ? trackingProgress(stopDepartures[0].minutes) : null,
+      trackingPosition: stopDepartures.length > 0 ? trackingPosition(stopDepartures[0].minutes) : null,
     }
   }),
 )
@@ -90,12 +99,20 @@ const resolvedColumns = computed(() =>
         <div class="column">
           <h2 class="direction">→ {{ col.direction }}</h2>
 
-          <div v-if="col.trackingProgress !== null" class="tracking">
-            <div class="tracking-track">
-              <div class="tracking-fill" :style="{ width: col.trackingProgress + '%' }" />
-              <div class="tracking-dot" :style="{ left: col.trackingProgress + '%', background: lineColor }" />
+          <div v-if="col.trackingPosition !== null" class="route">
+            <div class="route-track">
+              <div class="route-fill" :style="{ width: col.trackingPosition + '%' }" />
+              <div class="route-point" style="left: 0%" />
+              <div class="route-point route-point--here" style="left: 50%" />
+              <div class="route-point" style="left: 100%" />
+              <div class="route-marker" :style="{ left: col.trackingPosition + '%', background: lineColor, color: lineColor }" />
             </div>
-            <span class="tracking-caption">Position estimée</span>
+            <div class="route-labels">
+              <span class="route-label">{{ col.prevStop }}</span>
+              <span class="route-label route-label--here">{{ station }}</span>
+              <span class="route-label route-label--muted">{{ col.nextStop }}</span>
+            </div>
+            <span class="route-caption">Position estimée</span>
           </div>
 
           <p v-if="col.loading" class="loading">Chargement des horaires…</p>
@@ -245,43 +262,116 @@ h2.direction {
   line-height: 1.15;
 }
 
-.tracking {
+.route {
   display: flex;
   flex-direction: column;
-  gap: clamp(0.3rem, 0.8vw, 0.5rem);
+  gap: clamp(0.5rem, 1.2vw, 0.8rem);
 }
 
-.tracking-track {
+.route-track {
   position: relative;
-  height: 0.35rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  height: clamp(0.9rem, 2vw, 1.3rem);
+  margin: 0 clamp(0.4rem, 1vw, 0.65rem);
 }
 
-.tracking-fill {
+.route-track::before {
+  content: '';
   position: absolute;
-  inset: 0 auto 0 0;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 0.2rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-50%);
+}
+
+.route-fill {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 0.2rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%);
   transition: width 1s ease;
 }
 
-.tracking-dot {
+.route-point {
   position: absolute;
   top: 50%;
-  width: clamp(0.7rem, 1.6vw, 1.1rem);
-  height: clamp(0.7rem, 1.6vw, 1.1rem);
+  width: 0.6rem;
+  height: 0.6rem;
   border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 3px #0b0f14, 0 0 10px 1px rgba(255, 255, 255, 0.25);
-  transition: left 1s ease;
 }
 
-.tracking-caption {
-  font-size: clamp(0.65rem, 1.2vw, 0.9rem);
+.route-point--here {
+  width: 0.8rem;
+  height: 0.8rem;
+  background: var(--fg);
+}
+
+/* Marqueur du véhicule : nettement plus visible que les arrêts (plus grand,
+   couleur de la ligne, halo lumineux + pulsation) — c'est le point demandé. */
+.route-marker {
+  position: absolute;
+  top: 50%;
+  width: clamp(1rem, 2.2vw, 1.5rem);
+  height: clamp(1rem, 2.2vw, 1.5rem);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px #0b0f14, 0 0 14px 3px currentColor;
+  transition: left 1s ease;
+  animation: marker-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes marker-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px #0b0f14, 0 0 14px 3px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 0 3px #0b0f14, 0 0 20px 6px currentColor;
+  }
+}
+
+.route-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.route-label {
+  flex: 1;
+  min-width: 0;
+  font-size: clamp(0.6rem, 1.1vw, 0.85rem);
+  font-weight: 600;
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.route-label--here {
+  flex: 1.3;
+  text-align: center;
+  color: var(--fg);
+  font-weight: 800;
+}
+
+.route-label--muted {
+  text-align: right;
+  opacity: 0.7;
+}
+
+.route-caption {
+  font-size: clamp(0.6rem, 1.1vw, 0.8rem);
   color: var(--fg-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  opacity: 0.7;
 }
 
 .departures {
