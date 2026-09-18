@@ -27,13 +27,33 @@ const props = withDefaults(
 
 const { departures, error, loading } = useTcl()
 
+// Pas de position GPS réelle disponible pour ces lignes (le flux temps réel
+// SIRI-Lite de Grand Lyon couvre les bus et T2-T7, mais ni T1 ni le métro) :
+// on approxime la position du prochain véhicule en supposant un temps de
+// trajet moyen entre stations, et on en déduit une progression 0→100% à
+// partir du compte à rebours déjà affiché. C'est une estimation, jamais du
+// temps réel — d'où le libellé "Position estimée" dans le template.
+const AVERAGE_LEG_MINUTES: Record<'metro' | 'tramway', number> = {
+  tramway: 3,
+  metro: 2,
+}
+
+function trackingProgress(minutes: number): number {
+  const leg = AVERAGE_LEG_MINUTES[props.mode]
+  return Math.round(Math.min(1, Math.max(0, 1 - minutes / leg)) * 100)
+}
+
 const resolvedColumns = computed(() =>
-  props.columns.map((col) => ({
-    direction: col.direction,
-    departures: departures.value[col.key] ?? [],
-    errorMessage: error.value,
-    loading: loading.value,
-  })),
+  props.columns.map((col) => {
+    const stopDepartures = departures.value[col.key] ?? []
+    return {
+      direction: col.direction,
+      departures: stopDepartures,
+      errorMessage: error.value,
+      loading: loading.value,
+      trackingProgress: stopDepartures.length > 0 ? trackingProgress(stopDepartures[0].minutes) : null,
+    }
+  }),
 )
 </script>
 
@@ -69,6 +89,14 @@ const resolvedColumns = computed(() =>
       <template v-for="(col, i) in resolvedColumns" :key="i">
         <div class="column">
           <h2 class="direction">→ {{ col.direction }}</h2>
+
+          <div v-if="col.trackingProgress !== null" class="tracking">
+            <div class="tracking-track">
+              <div class="tracking-fill" :style="{ width: col.trackingProgress + '%' }" />
+              <div class="tracking-dot" :style="{ left: col.trackingProgress + '%', background: lineColor }" />
+            </div>
+            <span class="tracking-caption">Position estimée</span>
+          </div>
 
           <p v-if="col.loading" class="loading">Chargement des horaires…</p>
           <p v-else-if="col.errorMessage" class="error">{{ col.errorMessage }}</p>
@@ -215,6 +243,45 @@ h2.direction {
   font-size: clamp(1.3rem, 3vw, 3.4rem);
   font-weight: 800;
   line-height: 1.15;
+}
+
+.tracking {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.3rem, 0.8vw, 0.5rem);
+}
+
+.tracking-track {
+  position: relative;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tracking-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: width 1s ease;
+}
+
+.tracking-dot {
+  position: absolute;
+  top: 50%;
+  width: clamp(0.7rem, 1.6vw, 1.1rem);
+  height: clamp(0.7rem, 1.6vw, 1.1rem);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px #0b0f14, 0 0 10px 1px rgba(255, 255, 255, 0.25);
+  transition: left 1s ease;
+}
+
+.tracking-caption {
+  font-size: clamp(0.65rem, 1.2vw, 0.9rem);
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .departures {
