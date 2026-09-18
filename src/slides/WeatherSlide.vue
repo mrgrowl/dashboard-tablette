@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useWeather } from '../composables/useWeather'
+import WeatherIcon from '../components/WeatherIcon.vue'
 
 // Seul `day` est une prop stable ('today'/'tomorrow' ne change jamais pour ce
 // slide) : les données live (prévisions, erreur, chargement) sont lues
@@ -40,7 +41,7 @@ const dateLabel = computed(() => {
       <div class="periods">
         <div v-for="(p, i) in forecast.periods" :key="p.label" class="period" :style="{ '--i': i }">
           <span class="period-label">{{ p.label }}</span>
-          <span class="period-icon">{{ p.icon }}</span>
+          <WeatherIcon :name="p.icon" class="period-icon" />
           <span class="period-temp">{{ p.temp }}°</span>
           <span class="period-condition">{{ p.condition }}</span>
         </div>
@@ -49,7 +50,7 @@ const dateLabel = computed(() => {
       <div class="hourly">
         <div v-for="(h, i) in forecast.hourly" :key="h.hour" class="hour" :style="{ '--i': i }">
           <span class="hour-label">{{ h.hour }}</span>
-          <span class="hour-icon">{{ h.icon }}</span>
+          <WeatherIcon :name="h.icon" class="hour-icon" />
           <span class="hour-temp">{{ h.temp }}°</span>
         </div>
       </div>

@@ -9,16 +9,29 @@ const WEATHER_URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&long
 
 const REFRESH_MS = 30 * 60_000 // météo peu volatile : 30 min suffit largement
 
+// SVG (WeatherIcon.vue) plutôt qu'emoji : voir le commentaire dans ce fichier.
+export type WeatherIconName =
+  | 'sun'
+  | 'moon'
+  | 'cloud-sun'
+  | 'cloud'
+  | 'fog'
+  | 'drizzle'
+  | 'rain'
+  | 'snow-light'
+  | 'snow'
+  | 'thunderstorm'
+
 export interface WeatherPeriod {
   label: string
-  icon: string
+  icon: WeatherIconName
   temp: number
   condition: string
 }
 
 export interface WeatherHour {
   hour: string
-  icon: string
+  icon: WeatherIconName
   temp: number
 }
 
@@ -39,39 +52,39 @@ interface OpenMeteoResponse {
 // Codes WMO (norme utilisée par Open-Meteo) → icône/libellé FR. nightIcon
 // n'est utilisé que pour les codes où le pictogramme dépend du jour/nuit
 // (soleil/nuageux clair) — les autres (pluie, neige, orage...) sont les mêmes.
-const WEATHER_CODES: Record<number, { label: string; icon: string; nightIcon?: string }> = {
-  0: { label: 'Ciel dégagé', icon: '☀️', nightIcon: '🌙' },
-  1: { label: 'Peu nuageux', icon: '🌤️', nightIcon: '🌙' },
-  2: { label: 'Éclaircies', icon: '⛅', nightIcon: '☁️' },
-  3: { label: 'Couvert', icon: '☁️' },
-  45: { label: 'Brumeux', icon: '🌫️' },
-  48: { label: 'Brouillard givrant', icon: '🌫️' },
-  51: { label: 'Bruine légère', icon: '🌦️' },
-  53: { label: 'Bruine', icon: '🌦️' },
-  55: { label: 'Bruine dense', icon: '🌧️' },
-  56: { label: 'Bruine verglaçante', icon: '🌧️' },
-  57: { label: 'Bruine verglaçante', icon: '🌧️' },
-  61: { label: 'Pluie légère', icon: '🌦️' },
-  63: { label: 'Pluie', icon: '🌧️' },
-  65: { label: 'Forte pluie', icon: '🌧️' },
-  66: { label: 'Pluie verglaçante', icon: '🌧️' },
-  67: { label: 'Pluie verglaçante', icon: '🌧️' },
-  71: { label: 'Neige légère', icon: '🌨️' },
-  73: { label: 'Neige', icon: '❄️' },
-  75: { label: 'Forte neige', icon: '❄️' },
-  77: { label: 'Neige en grains', icon: '❄️' },
-  80: { label: 'Averses légères', icon: '🌦️' },
-  81: { label: 'Averses', icon: '🌧️' },
-  82: { label: 'Fortes averses', icon: '⛈️' },
-  85: { label: 'Averses de neige', icon: '🌨️' },
-  86: { label: 'Fortes averses de neige', icon: '❄️' },
-  95: { label: 'Orage', icon: '⛈️' },
-  96: { label: 'Orage avec grêle', icon: '⛈️' },
-  99: { label: 'Orage avec grêle', icon: '⛈️' },
+const WEATHER_CODES: Record<number, { label: string; icon: WeatherIconName; nightIcon?: WeatherIconName }> = {
+  0: { label: 'Ciel dégagé', icon: 'sun', nightIcon: 'moon' },
+  1: { label: 'Peu nuageux', icon: 'cloud-sun', nightIcon: 'moon' },
+  2: { label: 'Éclaircies', icon: 'cloud-sun', nightIcon: 'cloud' },
+  3: { label: 'Couvert', icon: 'cloud' },
+  45: { label: 'Brumeux', icon: 'fog' },
+  48: { label: 'Brouillard givrant', icon: 'fog' },
+  51: { label: 'Bruine légère', icon: 'drizzle' },
+  53: { label: 'Bruine', icon: 'drizzle' },
+  55: { label: 'Bruine dense', icon: 'rain' },
+  56: { label: 'Bruine verglaçante', icon: 'rain' },
+  57: { label: 'Bruine verglaçante', icon: 'rain' },
+  61: { label: 'Pluie légère', icon: 'drizzle' },
+  63: { label: 'Pluie', icon: 'rain' },
+  65: { label: 'Forte pluie', icon: 'rain' },
+  66: { label: 'Pluie verglaçante', icon: 'rain' },
+  67: { label: 'Pluie verglaçante', icon: 'rain' },
+  71: { label: 'Neige légère', icon: 'snow-light' },
+  73: { label: 'Neige', icon: 'snow' },
+  75: { label: 'Forte neige', icon: 'snow' },
+  77: { label: 'Neige en grains', icon: 'snow' },
+  80: { label: 'Averses légères', icon: 'drizzle' },
+  81: { label: 'Averses', icon: 'rain' },
+  82: { label: 'Fortes averses', icon: 'thunderstorm' },
+  85: { label: 'Averses de neige', icon: 'snow-light' },
+  86: { label: 'Fortes averses de neige', icon: 'snow' },
+  95: { label: 'Orage', icon: 'thunderstorm' },
+  96: { label: 'Orage avec grêle', icon: 'thunderstorm' },
+  99: { label: 'Orage avec grêle', icon: 'thunderstorm' },
 }
 
-function describe(code: number, isDay: number): { label: string; icon: string } {
-  const entry = WEATHER_CODES[code] ?? { label: 'Indisponible', icon: '❔' }
+function describe(code: number, isDay: number): { label: string; icon: WeatherIconName } {
+  const entry = WEATHER_CODES[code] ?? { label: 'Indisponible', icon: 'cloud' as WeatherIconName }
   return { label: entry.label, icon: isDay === 0 && entry.nightIcon ? entry.nightIcon : entry.icon }
 }
 
